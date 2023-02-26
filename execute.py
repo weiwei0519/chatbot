@@ -20,6 +20,7 @@ import io
 from progressbar import ProgressBar, Bar, Percentage
 import numpy as np
 import jieba
+import pickle
 
 config = getConfig.get_config()
 
@@ -60,15 +61,29 @@ def max_length(len_list):
 
 # 数据加载函数，可以根据需要按量加载数据
 def read_data(path, num_examples):
-    print('start read sequence training data')
-    input_lang, target_lang = create_dataset(path, num_examples)
-    input_len = [len(sen.split(' ')) for sen in input_lang]
-    target_len = [len(sen.split(' ')) for sen in target_lang]
-    max_length_input = max_length(input_len)
-    max_length_target = max_length(target_len)
-    input_tensor, input_tokenizer = tokenize(input_lang, max_length_input)
-    target_tensor, target_tokenizer = tokenize(target_lang, max_length_target)
-    print('end read sequence training data')
+    try:
+        dataset_pkl = open(config['dataset'] + '/dataset.pkl', 'rb')
+        input_tensor = pickle.load(dataset_pkl)
+        input_tokenizer = pickle.load(dataset_pkl)
+        target_tensor = pickle.load(dataset_pkl)
+        target_tokenizer = pickle.load(dataset_pkl)
+    except FileNotFoundError:
+        print('start read sequence training data')
+        input_lang, target_lang = create_dataset(path, num_examples)
+        input_len = [len(sen.split(' ')) for sen in input_lang]
+        target_len = [len(sen.split(' ')) for sen in target_lang]
+        max_length_input = max_length(input_len)
+        max_length_target = max_length(target_len)
+        input_tensor, input_tokenizer = tokenize(input_lang, max_length_input)
+        target_tensor, target_tokenizer = tokenize(target_lang, max_length_target)
+        print('end read sequence training data')
+        # 保存训练数据集
+        dataset_pkl = open(config['dataset'] + '/dataset.pkl', 'wb')
+        pickle.dump(input_tensor, dataset_pkl)
+        pickle.dump(input_tokenizer, dataset_pkl)
+        pickle.dump(target_tensor, dataset_pkl)
+        pickle.dump(target_tokenizer, dataset_pkl)
+        dataset_pkl.close()
     return input_tensor, input_tokenizer, target_tensor, target_tokenizer
 
 
@@ -179,5 +194,6 @@ if __name__ == '__main__':
                 que_list = " ".join(jieba.cut(question))
                 # 调用decode_line对生成回答信息
                 answer = predict(que_list)
+                answer = answer.replace(' ', '')
                 print(answer)
 
